@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { nanoid } = require('nanoid')
 const axios = require('axios')
 const ora = require('ora')
+const { green, yellow, red } = require('kolorist')
 
 let testUrl
 
@@ -23,16 +23,20 @@ const request = axios.create({
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+let runCount = 0
+
 const run = () => new Promise((resolve, reject) => {
-  testUrl.searchParams.set('psp_id', nanoid())
+  const pspId = Date.now().toString() + runCount++
+  testUrl.searchParams.set('psp_id', pspId)
+  const url = testUrl.toString()
   request.get('/v5/runPagespeed', {
     params: {
-      url: testUrl.toString(),
+      url,
       strategy: 'MOBILE',
       category: 'PERFORMANCE'
     }
   }).then(({ data }) => {
-    resolve({ ...data, url: testUrl.toString() })
+    resolve({ ...data, url })
   }).catch(error => {
     console.log(error.response.data.error);
     process.exit(1)
@@ -47,7 +51,7 @@ const run = () => new Promise((resolve, reject) => {
   const spinner = ora().start()
 
   for (const _ of Array(countNumber / eachNumber)) {
-    spinner.text = `in the test(${result.length})...`
+    spinner.text = `Running(${result.length + eachNumber})...`
     const itemResult = (await Promise.all([...Array(eachNumber)].map(_ => run()))).map((data) => {
       const audits = data.lighthouseResult.audits
       const performance = data.lighthouseResult.categories.performance
@@ -63,7 +67,6 @@ const run = () => new Promise((resolve, reject) => {
       }
     })
     result.push(...itemResult)
-    await sleep(1000)
   }
 
   spinner.stop()
@@ -84,26 +87,66 @@ const run = () => new Promise((resolve, reject) => {
     avgScore += score
     avgFCP += parseFloat(FCP.replace(' s', ''))
     avgLCP += parseFloat(LCP.replace(' s', ''))
-    avgLCP += parseFloat(LCP.replace(' s', ''))
+    avgTTI += parseFloat(TTI.replace(' s', ''))
     avgTBT += parseFloat(TBT.replace(' ms', ''))
     avgSI += parseFloat(SI.replace(' s', ''))
-    avgCLS += parseFloat(CLS.replace(' s', ''))
+    avgCLS += parseFloat(CLS)
   })
 
-  avgScore = (avgScore / count).toFixed(1)
-  avgFCP = (avgFCP / count).toFixed(1)
-  avgLCP = (avgLCP / count).toFixed(1)
-  avgTTI = (avgTTI / count).toFixed(1)
-  avgTBT = (avgTBT / count).toFixed(1)
-  avgSI = (avgSI / count).toFixed(1)
-  avgCLS = (avgCLS / count).toFixed(1)
+  avgScore = avgScore / count
+  avgFCP = avgFCP / count
+  avgLCP = avgLCP / count
+  avgTTI = avgTTI / count
+  avgTBT = avgTBT / count
+  avgSI = avgSI / count
+  avgCLS = avgCLS / count
 
-  console.log('testCount', count)
-  console.log('avgScore', avgScore)
-  console.log('avgFCP', avgFCP)
-  console.log('avgLCP', avgLCP)
-  console.log('avgTTI', avgTTI)
-  console.log('avgTBT', avgTBT)
-  console.log('avgSI', avgSI)
-  console.log('avgCLS', avgCLS)
+  // ------------- output avg ------------- //
+  const avgScoreStr = (() => {
+    let color = red
+    if (avgScore >= 50) color = yellow
+    if (avgScore >= 70) color = green
+    return color(avgScore.toFixed(1))
+  })()
+  const avgFCPStr = (() => {
+    let color = red
+    if (avgTBT <= 3) color = yellow
+    if (avgTBT <= 1.8) color = green
+    return color(avgFCP.toFixed(1) + 's')
+  })()
+  const avgLCPStr = (() => {
+    let color = red
+    if (avgTBT <= 4) color = yellow
+    if (avgTBT <= 2.5) color = green
+    return color(avgLCP.toFixed(1) + 's')
+  })()
+  const avgTTIStr = (() => {
+    let color = red
+    if (avgTBT <= 7.3) color = yellow
+    if (avgTBT <= 3.8) color = green
+    return color(avgTTI.toFixed(1) + 's')
+  })()
+  const avgTBTStr = (() => {
+    let color = red
+    if (avgTBT <= 600) color = yellow
+    if (avgTBT <= 200) color = green
+    return color(avgTBT.toFixed(1) + 'ms')
+  })()
+  const avgSIStr = (() => {
+    let color = red
+    if (avgTBT <= 5.8) color = yellow
+    if (avgTBT <= 3.4) color = green
+    return color(avgSI.toFixed(1) + 's')
+  })()
+  const avgCLSStr = avgSI.toFixed(1)
+
+  console.log()
+  console.log('AvgScore', avgScoreStr)
+  console.log('AvgFCP', avgFCPStr)
+  console.log('AvgLCP', avgLCPStr)
+  console.log('AvgTTI', avgTTIStr)
+  console.log('AvgTBT', avgTBTStr)
+  console.log('AvgSI', avgSIStr)
+  console.log('AvgCLS', avgCLSStr)
+  console.log()
 })()
