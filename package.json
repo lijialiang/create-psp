@@ -1,0 +1,14 @@
+{
+  "name": "create-psp",
+  "version": "0.0.4",
+  "main": "index.js",
+  "license": "MIT",
+  "bin": {
+    "create-psp": "index.js"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "nanoid": "^3.0.0",
+    "ora": "^5.0.0"
+  }
+}
